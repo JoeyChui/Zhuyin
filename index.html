@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="在浏览器本地为中文文本添加拼音。" />
+  <title>汉字注音</title>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #f9f6f0;
+      color: #333;
+      font-family: "STKaiti", "KaiTi", "楷体", "Microsoft YaHei", serif;
+      font-size: 24px;
+      line-height: 3;
+    }
+    .page { max-width: 900px; margin: 50px auto; padding: 20px; }
+    h1 { margin: 0 0 40px; color: #2c3e50; text-align: center; font-size: 3em; line-height: 1.45; }
+    .article p { margin: 0 0 20px; text-align: justify; font-size: 1.2em; text-indent: 2em; }
+    ruby { ruby-position: over; }
+    rt { color: #666; font-family: Arial, sans-serif; font-size: .6em; letter-spacing: 0; user-select: none; }
+    .plain { white-space: pre-wrap; }
+    .empty { min-height: calc(100vh - 100px); display: grid; place-items: center; }
+    .composer { width: min(100%, 760px); padding: 24px 0; }
+    .composer h1 { font-size: 2.2em; margin-bottom: 12px; }
+    .hint { margin: 0 0 25px; color: #796f63; font-size: .75em; line-height: 1.8; text-align: center; }
+    textarea { display: block; width: 100%; min-height: 285px; resize: vertical; border: 1px solid #d7cfc3; border-radius: 10px; padding: 20px 92px 82px 20px; background: #fffdfa; color: #333; font: inherit; font-size: .9em; line-height: 2; outline: none; }
+    textarea:focus { border-color: #9c856a; box-shadow: 0 0 0 3px rgba(156,133,106,.15); }
+    .text-area-wrap { position: relative; }
+    .annotate-button { position: absolute; right: 16px; bottom: 16px; width: 64px; height: 64px; border: 0; border-radius: 50%; background: #2c3e50; color: #fff; box-shadow: 0 5px 14px rgba(44,62,80,.25); cursor: pointer; font: inherit; font-size: .62em; line-height: 1; }
+    .annotate-button:hover { transform: translateY(-1px); background: #3c536b; }
+    .floating { position: fixed; right: 28px; bottom: 28px; width: 64px; height: 64px; border: 0; border-radius: 50%; background: #2c3e50; color: #fff; box-shadow: 0 8px 24px rgba(44,62,80,.32); cursor: pointer; font: 38px/1 Arial, sans-serif; }
+    .floating:hover { transform: translateY(-2px); background: #3c536b; }
+    dialog { width: min(900px, calc(100vw - 40px)); max-height: min(82vh, 850px); border: 0; border-radius: 18px; padding: 0; background: #f9f6f0; color: #333; box-shadow: 0 24px 80px rgba(0,0,0,.28); }
+    dialog::backdrop { background: rgba(28, 35, 41, .42); backdrop-filter: blur(2px); }
+    .dialog-inner { padding: 34px 38px 40px; overflow: auto; max-height: min(82vh, 850px); }
+    .dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
+    .dialog-head h2 { margin: 0; font-size: 1.55em; line-height: 1.4; color: #2c3e50; }
+    .close { border: 0; background: transparent; color: #6f665b; cursor: pointer; font-size: 34px; line-height: 1; }
+    .new-entry { margin-bottom: 24px; }
+    .new-entry textarea { min-height: 160px; font-size: .78em; }
+    .history { display: grid; gap: 12px; }
+    .history-row { display: flex; align-items: stretch; gap: 10px; }
+    .history-item { flex: 1; min-width: 0; padding: 16px 18px; border: 1px solid #e1d9ce; border-radius: 10px; background: rgba(255,255,255,.5); color: #333; cursor: pointer; text-align: left; font: inherit; }
+    .history-item:hover, .history-item.active { border-color: #998069; background: #fffdfa; }
+    .history-title { display: block; overflow: hidden; font-size: .9em; line-height: 1.5; text-overflow: ellipsis; white-space: nowrap; }
+    .delete-item { width: 68px; flex: 0 0 68px; border: 1px solid #dfc4bd; border-radius: 10px; background: transparent; color: #a14f40; cursor: pointer; font: inherit; font-size: .62em; }
+    .delete-item:hover { background: #fff0ed; border-color: #b87061; }
+    .status { margin-top: 14px; min-height: 1.5em; color: #8a4b35; font-family: "Microsoft YaHei", sans-serif; font-size: 13px; line-height: 1.5; text-align: center; }
+    @media (max-width: 600px) { body { font-size: 20px; } .page { margin: 20px auto; padding: 16px; } .composer { padding: 24px 0; } .dialog-inner { padding: 25px 20px; } .floating { right: 18px; bottom: 18px; width: 56px; height: 56px; } .delete-item { width: 56px; flex-basis: 56px; } }
+  </style>
+</head>
+<body>
+  <main id="app"></main>
+  <button id="historyButton" class="floating" type="button" aria-label="打开历史文本" hidden>+</button>
+  <dialog id="historyDialog">
+    <div class="dialog-inner">
+      <div class="dialog-head"><h2>文本历史</h2><button class="close" id="closeDialog" aria-label="关闭">×</button></div>
+      <form id="newTextForm" class="new-entry">
+        <div class="text-area-wrap"><textarea id="newText" placeholder="粘贴或输入一段中文文字……" required></textarea><button class="annotate-button" type="submit">注音</button></div>
+        <div class="status" id="modalStatus"></div>
+      </form>
+      <div class="history" id="historyList"></div>
+    </div>
+  </dialog>
+  <script>
+    (() => {
+      const STORAGE_KEY = 'hanzi-pinyin-reader-v1';
+      // Avoid freezing the page by rendering an excessive number of ruby elements at once.
+      const MAX_TEXT_LENGTH = 60000;
+      const REMOTE_PINYIN_URL = 'https://cdn.jsdelivr.net/npm/pinyin-pro/dist/index.js';
+      const LOCAL_PINYIN_URL = './vendor/pinyin-pro.min.js';
+      const app = document.querySelector('#app');
+      const floating = document.querySelector('#historyButton');
+      const dialog = document.querySelector('#historyDialog');
+      const historyList = document.querySelector('#historyList');
+      const modalStatus = document.querySelector('#modalStatus');
+      const newText = document.querySelector('#newText');
+      let state = loadState();
+
+      function loadState() {
+        try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { items: [], currentId: null }; }
+        catch (_) { return { items: [], currentId: null }; }
+      }
+      function saveState() {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); return true; }
+        catch (_) { return false; }
+      }
+      function escapeHTML(value) { return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]); }
+      function isHanzi(char) { return /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/.test(char); }
+      function titleFor(text) {
+        const cleaned = text.trim().replace(/^[\s\p{P}\p{S}]+/u, '');
+        const boundary = cleaned.search(/[\s\p{P}\p{S}]/u);
+        return (boundary === -1 ? cleaned : cleaned.slice(0, boundary)).slice(0, 22) || '未命名文本';
+      }
+
+      function loadScript(url, timeout) {
+        return new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          const timer = window.setTimeout(() => { script.remove(); reject(new Error('加载超时')); }, timeout);
+          script.src = url;
+          script.async = true;
+          script.onload = () => { window.clearTimeout(timer); window.pinyinPro ? resolve() : reject(new Error('注音引擎不可用')); };
+          script.onerror = () => { window.clearTimeout(timer); script.remove(); reject(new Error('加载失败')); };
+          document.head.append(script);
+        });
+      }
+      // Prefer the current CDN release, while keeping the page usable if the network is slow or unavailable.
+      const pinyinReady = loadScript(REMOTE_PINYIN_URL, 5000).catch(() => loadScript(LOCAL_PINYIN_URL, 2000));
+
+      // pinyin-pro uses phrase-level dictionaries and contextual segmentation, which is crucial for common polyphonic words.
+      function annotateLine(line) {
+        if (!line) return '';
+        if (!window.pinyinPro) return escapeHTML(line);
+        // Removing non-Han tokens here makes each entry correspond to exactly one Chinese character.
+        const readings = window.pinyinPro.pinyin(line, { toneType: 'symbol', type: 'array', nonZh: 'removed', v: true });
+        let readingIndex = 0;
+        return [...line].map(char => {
+          if (!isHanzi(char)) return escapeHTML(char);
+          const reading = readings[readingIndex++] || '';
+          return `<ruby>${escapeHTML(char)}<rt>${escapeHTML(reading)}</rt></ruby>`;
+        }).join('');
+      }
+      function articleHTML(text) {
+        // A pasted line is treated as a paragraph, so every visible paragraph keeps the standard two-em Chinese indent.
+        return text.replace(/\r\n?/g, '\n').split('\n').filter(line => line.trim()).map(line => `<p>${annotateLine(line)}</p>`).join('');
+      }
+      function render() {
+        const current = state.items.find(item => item.id === state.currentId);
+        floating.hidden = state.items.length === 0;
+        if (!current) {
+          app.innerHTML = `<section class="empty"><form class="composer" id="firstTextForm"><h1>汉字注音</h1><p class="hint">粘贴中文段落，生成带声调拼音的阅读页面。文本仅保存在当前浏览器。</p><div class="text-area-wrap"><textarea id="firstText" placeholder="在这里粘贴文字……" required autofocus></textarea><button class="annotate-button" type="submit">注音</button></div><div class="status" id="firstStatus"></div></form></section>`;
+          document.querySelector('#firstTextForm').addEventListener('submit', e => { e.preventDefault(); createItem(document.querySelector('#firstText').value, document.querySelector('#firstStatus')); });
+          return;
+        }
+        app.innerHTML = `<article class="page article"><h1>${escapeHTML(titleFor(current.text))}</h1>${articleHTML(current.text)}</article>`;
+      }
+      function createItem(text, statusNode) {
+        const cleaned = text.trim();
+        if (!cleaned) { statusNode.textContent = '请先输入一段文字。'; return; }
+        if (cleaned.length > MAX_TEXT_LENGTH) { statusNode.textContent = `单篇文本请控制在 ${MAX_TEXT_LENGTH.toLocaleString()} 字以内。`; return; }
+        if (!window.pinyinPro) { statusNode.textContent = '注音引擎尚未加载，请检查网络后重试。'; return; }
+        const existing = state.items.find(item => item.text === cleaned);
+        const item = existing || { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, text: cleaned, createdAt: Date.now() };
+        const previousState = state;
+        state = { items: existing ? state.items : [item, ...state.items], currentId: item.id };
+        if (!saveState()) { state = previousState; statusNode.textContent = '本地存储空间不足，请删除不需要的历史文本后重试。'; return; }
+        dialog.close(); newText.value = ''; modalStatus.textContent = '';
+        render(); renderHistory(); window.scrollTo({ top: 0, behavior: 'auto' });
+      }
+      function renderHistory() {
+        historyList.innerHTML = state.items.map(item => `<div class="history-row"><button type="button" class="history-item ${item.id === state.currentId ? 'active' : ''}" data-id="${item.id}"><span class="history-title">${escapeHTML(titleFor(item.text))}</span></button><button type="button" class="delete-item" data-delete-id="${item.id}" aria-label="删除“${escapeHTML(titleFor(item.text))}”">删除</button></div>`).join('');
+        historyList.querySelectorAll('[data-id]').forEach(button => button.addEventListener('click', () => { state.currentId = button.dataset.id; saveState(); dialog.close(); render(); renderHistory(); window.scrollTo({ top: 0, behavior: 'auto' }); }));
+        historyList.querySelectorAll('[data-delete-id]').forEach(button => button.addEventListener('click', () => {
+          const id = button.dataset.deleteId;
+          const remaining = state.items.filter(item => item.id !== id);
+          state = { items: remaining, currentId: state.currentId === id ? (remaining[0]?.id || null) : state.currentId };
+          saveState(); render(); renderHistory();
+        }));
+      }
+      document.querySelector('#newTextForm').addEventListener('submit', e => { e.preventDefault(); createItem(newText.value, modalStatus); });
+      floating.addEventListener('click', () => { modalStatus.textContent = ''; renderHistory(); dialog.showModal(); newText.focus(); });
+      document.querySelector('#closeDialog').addEventListener('click', () => dialog.close());
+      render(); renderHistory();
+      pinyinReady.then(() => render()).catch(() => {});
+    })();
+  </script>
+</body>
+</html>
