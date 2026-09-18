@@ -7,50 +7,88 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <title>汉字注音</title>
   <style>
-    :root { color-scheme: light; }
+    :root {
+      color-scheme: light dark;
+      --page-background: #f9f6f0;
+      --surface: #fffdfa;
+      --surface-muted: rgba(255,255,255,.5);
+      --text: #333;
+      --heading: #2c3e50;
+      --annotation: #666;
+      --muted: #796f63;
+      --border: #d7cfc3;
+      --border-subtle: #e1d9ce;
+      --accent: #2c3e50;
+      --accent-hover: #3c536b;
+      --focus: #9c856a;
+      --danger: #a14f40;
+      --danger-border: #dfc4bd;
+      --danger-hover: #fff0ed;
+      --dialog-backdrop: rgba(28, 35, 41, .42);
+    }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       min-height: 100vh;
-      background: #f9f6f0;
-      color: #333;
+      background: var(--page-background);
+      color: var(--text);
       font-family: "STKaiti", "KaiTi", "楷体", "Microsoft YaHei", serif;
       font-size: 24px;
       line-height: 3;
     }
     .page { max-width: 900px; margin: 50px auto; padding: 20px; }
-    h1 { margin: 0 0 40px; color: #2c3e50; text-align: center; font-size: 3em; line-height: 1.45; }
+    h1 { margin: 0 0 40px; color: var(--heading); text-align: center; font-size: 3em; line-height: 1.45; }
     .article p { margin: 0 0 20px; text-align: justify; font-size: 1.2em; text-indent: 2em; }
     ruby { ruby-position: over; }
-    rt { color: #666; font-family: Arial, sans-serif; font-size: .6em; letter-spacing: 0; user-select: none; }
+    rt { color: var(--annotation); font-family: Arial, sans-serif; font-size: .6em; letter-spacing: 0; user-select: none; }
     .plain { white-space: pre-wrap; }
     .empty { min-height: calc(100vh - 100px); display: grid; place-items: center; }
     .composer { width: min(100%, 760px); padding: 24px 0; }
     .composer h1 { font-size: 2.2em; margin-bottom: 12px; }
-    .hint { margin: 0 0 25px; color: #796f63; font-size: .75em; line-height: 1.8; text-align: center; }
-    textarea { display: block; width: 100%; min-height: 285px; resize: vertical; border: 1px solid #d7cfc3; border-radius: 10px; padding: 20px 92px 82px 20px; background: #fffdfa; color: #333; font: inherit; font-size: .9em; line-height: 2; outline: none; }
-    textarea:focus { border-color: #9c856a; box-shadow: 0 0 0 3px rgba(156,133,106,.15); }
+    .hint { margin: 0 0 25px; color: var(--muted); font-size: .75em; line-height: 1.8; text-align: center; }
+    textarea { display: block; width: 100%; min-height: 285px; resize: vertical; border: 1px solid var(--border); border-radius: 10px; padding: 20px 92px 82px 20px; background: var(--surface); color: var(--text); font: inherit; font-size: .9em; line-height: 2; outline: none; }
+    textarea:focus { border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 22%, transparent); }
     .text-area-wrap { position: relative; }
-    .annotate-button { position: absolute; right: 16px; bottom: 16px; width: 64px; height: 64px; border: 0; border-radius: 50%; background: #2c3e50; color: #fff; box-shadow: 0 5px 14px rgba(44,62,80,.25); cursor: pointer; font: inherit; font-size: .62em; line-height: 1; }
-    .annotate-button:hover { transform: translateY(-1px); background: #3c536b; }
-    .floating { position: fixed; right: 28px; bottom: 28px; width: 64px; height: 64px; border: 0; border-radius: 50%; background: #2c3e50; color: #fff; box-shadow: 0 8px 24px rgba(44,62,80,.32); cursor: pointer; font: 38px/1 Arial, sans-serif; }
-    .floating:hover { transform: translateY(-2px); background: #3c536b; }
-    dialog { width: min(900px, calc(100vw - 40px)); max-height: min(82vh, 850px); border: 0; border-radius: 18px; padding: 0; background: #f9f6f0; color: #333; box-shadow: 0 24px 80px rgba(0,0,0,.28); }
-    dialog::backdrop { background: rgba(28, 35, 41, .42); backdrop-filter: blur(2px); }
+    .annotate-button { position: absolute; right: 16px; bottom: 16px; width: 64px; height: 64px; border: 0; border-radius: 50%; background: var(--accent); color: #fff; box-shadow: 0 5px 14px color-mix(in srgb, var(--accent) 25%, transparent); cursor: pointer; font: inherit; font-size: .62em; line-height: 1; }
+    .annotate-button:hover { transform: translateY(-1px); background: var(--accent-hover); }
+    .floating { position: fixed; right: 28px; bottom: 28px; width: 64px; height: 64px; border: 0; border-radius: 50%; background: var(--accent); color: #fff; box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 32%, transparent); cursor: pointer; font: 38px/1 Arial, sans-serif; }
+    .floating:hover { transform: translateY(-2px); background: var(--accent-hover); }
+    dialog { width: min(900px, calc(100vw - 40px)); max-height: min(82vh, 850px); border: 0; border-radius: 18px; padding: 0; background: var(--page-background); color: var(--text); box-shadow: 0 24px 80px rgba(0,0,0,.28); }
+    dialog::backdrop { background: var(--dialog-backdrop); backdrop-filter: blur(2px); }
     .dialog-inner { padding: 34px 38px 40px; overflow: auto; max-height: min(82vh, 850px); }
     .dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
-    .dialog-head h2 { margin: 0; font-size: 1.55em; line-height: 1.4; color: #2c3e50; }
-    .close { border: 0; background: transparent; color: #6f665b; cursor: pointer; font-size: 34px; line-height: 1; }
+    .dialog-head h2 { margin: 0; font-size: 1.55em; line-height: 1.4; color: var(--heading); }
+    .close { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 34px; line-height: 1; }
     .new-entry { margin-bottom: 24px; }
     .new-entry textarea { min-height: 160px; font-size: .78em; }
     .history { display: grid; gap: 12px; }
     .history-row { display: flex; align-items: stretch; gap: 10px; }
-    .history-item { flex: 1; min-width: 0; padding: 16px 18px; border: 1px solid #e1d9ce; border-radius: 10px; background: rgba(255,255,255,.5); color: #333; cursor: pointer; text-align: left; font: inherit; }
-    .history-item:hover, .history-item.active { border-color: #998069; background: #fffdfa; }
+    .history-item { flex: 1; min-width: 0; padding: 16px 18px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface-muted); color: var(--text); cursor: pointer; text-align: left; font: inherit; }
+    .history-item:hover, .history-item.active { border-color: var(--focus); background: var(--surface); }
     .history-title { display: block; overflow: hidden; font-size: .9em; line-height: 1.5; text-overflow: ellipsis; white-space: nowrap; }
-    .delete-item { width: 68px; flex: 0 0 68px; border: 1px solid #dfc4bd; border-radius: 10px; background: transparent; color: #a14f40; cursor: pointer; font: inherit; font-size: .62em; }
-    .delete-item:hover { background: #fff0ed; border-color: #b87061; }
-    .status { margin-top: 14px; min-height: 1.5em; color: #8a4b35; font-family: "Microsoft YaHei", sans-serif; font-size: 13px; line-height: 1.5; text-align: center; }
+    .delete-item { width: 68px; flex: 0 0 68px; border: 1px solid var(--danger-border); border-radius: 10px; background: transparent; color: var(--danger); cursor: pointer; font: inherit; font-size: .62em; }
+    .delete-item:hover { background: var(--danger-hover); border-color: var(--danger); }
+    .status { margin-top: 14px; min-height: 1.5em; color: var(--danger); font-family: "Microsoft YaHei", sans-serif; font-size: 13px; line-height: 1.5; text-align: center; }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --page-background: #202124;
+        --surface: #292a2d;
+        --surface-muted: #292a2d;
+        --text: #d4d0cb;
+        --heading: #eee7de;
+        --annotation: #aaa6a0;
+        --muted: #aaa6a0;
+        --border: #4b4c50;
+        --border-subtle: #3d3e42;
+        --accent: #a8752a;
+        --accent-hover: #c48b37;
+        --focus: #c89549;
+        --danger: #e28b7b;
+        --danger-border: #714740;
+        --danger-hover: #3e2928;
+        --dialog-backdrop: rgba(0, 0, 0, .65);
+      }
+    }
     @media (max-width: 600px) { body { font-size: 20px; } .page { margin: 20px auto; padding: 16px; } .composer { padding: 24px 0; } .dialog-inner { padding: 25px 20px; } .floating { right: 18px; bottom: 18px; width: 56px; height: 56px; } .delete-item { width: 56px; flex-basis: 56px; } }
   </style>
 </head>
