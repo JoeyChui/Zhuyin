@@ -36,11 +36,43 @@
       font-size: 24px;
       line-height: 3;
     }
-    .page { max-width: 900px; margin: 50px auto; padding: 20px; }
-    h1 { margin: 0 0 40px; color: var(--heading); text-align: center; font-size: 3em; line-height: 1.45; }
-    .article p { margin: 0 0 20px; text-align: justify; font-size: 1.2em; text-indent: 2em; }
-    ruby { ruby-position: over; }
-    rt { color: var(--annotation); font-family: Arial, sans-serif; font-size: .6em; letter-spacing: 0; user-select: none; }
+    .page { max-width: 1280px; margin: 50px auto; padding: 20px; }
+    h1 { margin: 0 0 40px; color: var(--heading); text-align: center; font-size: 2.4em; line-height: 1.45; }
+    .article {
+      /* One stable cell keeps the text rhythm consistent. 1.5em leaves room for
+         ordinary long syllables without making a paragraph unnecessarily sparse. */
+      --annotation-cell-width: 1.5em;
+      --annotation-height: .78em;
+    }
+    /* Reserve the first-line indent on the right as well, so the paragraph's
+       readable area stays visually balanced while retaining Chinese indentation. */
+    .article p { margin: 0 0 20px; padding-right: 2em; text-align: start; font-size: 1.2em; text-indent: 2em; }
+    .article-head { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 0 0 40px; }
+    .article-head h1 { min-width: 0; margin: 0; }
+    .annotated-char {
+      display: inline-grid;
+      grid-template-rows: var(--annotation-height) 1em;
+      width: var(--annotation-cell-width);
+      line-height: 1;
+      text-align: center;
+      vertical-align: bottom;
+    }
+    .pinyin {
+      grid-row: 1;
+      align-self: end;
+      justify-self: center;
+      color: var(--annotation);
+      font-family: Arial, sans-serif;
+      font-size: .6em;
+      line-height: 1;
+      white-space: nowrap;
+      user-select: none;
+    }
+    .hanzi, .punctuation {
+      grid-row: 2;
+      align-self: start;
+      justify-self: center;
+    }
     .plain { white-space: pre-wrap; }
     .empty { min-height: calc(100vh - 100px); display: grid; place-items: center; }
     .composer { width: min(100%, 760px); padding: 24px 0; }
@@ -51,8 +83,8 @@
     .text-area-wrap { position: relative; }
     .annotate-button { position: absolute; right: 16px; bottom: 16px; width: 64px; height: 64px; border: 0; border-radius: 50%; background: var(--accent); color: #fff; box-shadow: 0 5px 14px color-mix(in srgb, var(--accent) 25%, transparent); cursor: pointer; font: inherit; font-size: .62em; line-height: 1; }
     .annotate-button:hover { transform: translateY(-1px); background: var(--accent-hover); }
-    .floating { position: fixed; right: 28px; bottom: 28px; width: 64px; height: 64px; border: 0; border-radius: 50%; background: var(--accent); color: #fff; box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 32%, transparent); cursor: pointer; font: 38px/1 Arial, sans-serif; }
-    .floating:hover { transform: translateY(-2px); background: var(--accent-hover); }
+    .floating { flex: 0 0 auto; width: 36px; height: 36px; border: 0; border-radius: 50%; background: var(--accent); color: #fff; cursor: pointer; font: 24px/1 Arial, sans-serif; }
+    .floating:hover { background: var(--accent-hover); }
     dialog { width: min(900px, calc(100vw - 40px)); max-height: min(82vh, 850px); border: 0; border-radius: 18px; padding: 0; background: var(--page-background); color: var(--text); box-shadow: 0 24px 80px rgba(0,0,0,.28); }
     dialog::backdrop { background: var(--dialog-backdrop); backdrop-filter: blur(2px); }
     .dialog-inner { padding: 34px 38px 40px; overflow: auto; max-height: min(82vh, 850px); }
@@ -89,12 +121,11 @@
         --dialog-backdrop: rgba(0, 0, 0, .65);
       }
     }
-    @media (max-width: 600px) { body { font-size: 20px; } .page { margin: 20px auto; padding: 16px; } .composer { padding: 24px 0; } .dialog-inner { padding: 25px 20px; } .floating { right: 18px; bottom: 18px; width: 56px; height: 56px; } .delete-item { width: 56px; flex-basis: 56px; } }
+    @media (max-width: 600px) { body { font-size: 20px; } .page { margin: 20px auto; padding: 16px; } .composer { padding: 24px 0; } .dialog-inner { padding: 25px 20px; } .article-head { gap: 8px; } .floating { width: 34px; height: 34px; font-size: 22px; } .delete-item { width: 56px; flex-basis: 56px; } }
   </style>
 </head>
 <body>
   <main id="app"></main>
-  <button id="historyButton" class="floating" type="button" aria-label="打开历史文本" hidden>+</button>
   <dialog id="historyDialog">
     <div class="dialog-inner">
       <div class="dialog-head"><h2>文本历史</h2><button class="close" id="closeDialog" aria-label="关闭">×</button></div>
@@ -113,7 +144,6 @@
       const REMOTE_PINYIN_URL = 'https://cdn.jsdelivr.net/npm/pinyin-pro/dist/index.js';
       const LOCAL_PINYIN_URL = './vendor/pinyin-pro.min.js';
       const app = document.querySelector('#app');
-      const floating = document.querySelector('#historyButton');
       const dialog = document.querySelector('#historyDialog');
       const historyList = document.querySelector('#historyList');
       const modalStatus = document.querySelector('#modalStatus');
@@ -158,24 +188,29 @@
         const readings = window.pinyinPro.pinyin(line, { toneType: 'symbol', type: 'array', nonZh: 'removed', v: true });
         let readingIndex = 0;
         return [...line].map(char => {
-          if (!isHanzi(char)) return escapeHTML(char);
+          // Punctuation uses the same lower grid row as a Han character, keeping
+          // punctuation and annotated text on one shared baseline and rhythm.
+          if (!isHanzi(char)) {
+            if (/\s/.test(char)) return escapeHTML(char);
+            return `<span class="annotated-char"><span class="punctuation">${escapeHTML(char)}</span></span>`;
+          }
           const reading = readings[readingIndex++] || '';
-          return `<ruby>${escapeHTML(char)}<rt>${escapeHTML(reading)}</rt></ruby>`;
+          return `<span class="annotated-char"><span class="pinyin" aria-hidden="true">${escapeHTML(reading)}</span><span class="hanzi">${escapeHTML(char)}</span></span>`;
         }).join('');
       }
       function articleHTML(text) {
-        // A pasted line is treated as a paragraph, so every visible paragraph keeps the standard two-em Chinese indent.
+        // A pasted line is treated as a paragraph, with a standard two-character first-line indent.
         return text.replace(/\r\n?/g, '\n').split('\n').filter(line => line.trim()).map(line => `<p>${annotateLine(line)}</p>`).join('');
       }
       function render() {
         const current = state.items.find(item => item.id === state.currentId);
-        floating.hidden = state.items.length === 0;
         if (!current) {
           app.innerHTML = `<section class="empty"><form class="composer" id="firstTextForm"><h1>汉字注音</h1><p class="hint">粘贴中文段落，生成带声调拼音的阅读页面。文本仅保存在当前浏览器。</p><div class="text-area-wrap"><textarea id="firstText" placeholder="在这里粘贴文字……" required autofocus></textarea><button class="annotate-button" type="submit">注音</button></div><div class="status" id="firstStatus"></div></form></section>`;
           document.querySelector('#firstTextForm').addEventListener('submit', e => { e.preventDefault(); createItem(document.querySelector('#firstText').value, document.querySelector('#firstStatus')); });
           return;
         }
-        app.innerHTML = `<article class="page article"><h1>${escapeHTML(titleFor(current.text))}</h1>${articleHTML(current.text)}</article>`;
+        app.innerHTML = `<article class="page article"><div class="article-head"><h1>${escapeHTML(titleFor(current.text))}</h1><button id="historyButton" class="floating" type="button" aria-label="打开历史文本">+</button></div>${articleHTML(current.text)}</article>`;
+        document.querySelector('#historyButton').addEventListener('click', () => { modalStatus.textContent = ''; renderHistory(); dialog.showModal(); newText.focus(); });
       }
       function createItem(text, statusNode) {
         const cleaned = text.trim();
@@ -201,7 +236,6 @@
         }));
       }
       document.querySelector('#newTextForm').addEventListener('submit', e => { e.preventDefault(); createItem(newText.value, modalStatus); });
-      floating.addEventListener('click', () => { modalStatus.textContent = ''; renderHistory(); dialog.showModal(); newText.focus(); });
       document.querySelector('#closeDialog').addEventListener('click', () => dialog.close());
       render(); renderHistory();
       pinyinReady.then(() => render()).catch(() => {});
