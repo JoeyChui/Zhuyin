@@ -7,6 +7,8 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <title>汉字注音</title>
   <style>
+    /* swap keeps text readable with the system fallback until the font is available. */
+    @font-face { font-family: "方正汉文正楷"; src: url("字体-方正汉文正楷简体FZHWZKJW.TTF") format("truetype"); font-display: swap; }
     :root {
       color-scheme: light dark;
       --page-background: #f9f6f0;
@@ -32,7 +34,7 @@
       min-height: 100vh;
       background: var(--page-background);
       color: var(--text);
-      font-family: "STKaiti", "KaiTi", "楷体", "Microsoft YaHei", serif;
+      font-family: "方正汉文正楷", "STKaiti", "KaiTi", "楷体", "Microsoft YaHei", serif;
       font-size: 24px;
       line-height: 3;
     }
@@ -46,7 +48,7 @@
     }
     /* Reserve the first-line indent on the right as well, so the paragraph's
        readable area stays visually balanced while retaining Chinese indentation. */
-    .article p { margin: 0 0 20px; padding-right: 2em; text-align: start; font-size: 1.2em; text-indent: 2em; }
+    .article p { margin: 0 0 20px; padding-right: 2em; text-align: start; font-size: var(--reader-font-size, 29px); line-height: var(--reader-line-height, 3); letter-spacing: var(--reader-letter-spacing, 0px); text-indent: 2em; }
     .article-head { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 0 0 40px; }
     .article-head h1 { min-width: 0; margin: 0; }
     .annotated-char {
@@ -90,6 +92,15 @@
     .dialog-inner { padding: 34px 38px 40px; overflow: auto; max-height: min(82vh, 850px); }
     .dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
     .dialog-head h2 { margin: 0; font-size: 1.55em; line-height: 1.4; color: var(--heading); }
+    .dialog-title-and-controls { display: flex; flex: 1; align-items: center; min-width: 0; gap: 24px; }
+    .reader-controls { display: flex; align-items: center; flex: 1; gap: 18px; }
+    .reader-control { display: flex; align-items: center; min-width: 0; gap: 8px; color: var(--muted); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 15px; line-height: 1.2; }
+    .reader-control > span { white-space: nowrap; }
+    .reader-control output { color: var(--text); font-variant-numeric: tabular-nums; }
+    .stepper { display: flex; align-items: center; width: clamp(92px, 11vw, 150px); height: 29px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: var(--surface); }
+    .stepper button { width: 29px; height: 100%; border: 0; background: transparent; color: var(--heading); cursor: pointer; font: 20px/1 system-ui, sans-serif; }
+    .stepper button:hover { background: var(--surface-muted); }
+    .stepper output { flex: 1; min-width: 0; text-align: center; font-size: 11px; }
     .close { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 34px; line-height: 1; }
     .new-entry { margin-bottom: 24px; }
     .new-entry textarea { min-height: 160px; font-size: .78em; }
@@ -121,14 +132,19 @@
         --dialog-backdrop: rgba(0, 0, 0, .65);
       }
     }
-    @media (max-width: 600px) { body { font-size: 20px; } .page { margin: 20px auto; padding: 16px; } .composer { padding: 24px 0; } .dialog-inner { padding: 25px 20px; } .article-head { gap: 8px; } .floating { width: 34px; height: 34px; font-size: 22px; } .delete-item { width: 56px; flex-basis: 56px; } }
+    @media (max-width: 760px) { .dialog-title-and-controls { align-items: flex-start; flex-direction: column; gap: 12px; } .reader-controls { width: 100%; justify-content: space-between; gap: 10px; } }
+    @media (max-width: 600px) { body { font-size: 20px; } .page { margin: 20px auto; padding: 16px; } .composer { padding: 24px 0; } .dialog-inner { padding: 25px 20px; } .article-head { gap: 8px; } .floating { width: 34px; height: 34px; font-size: 22px; } .delete-item { width: 56px; flex-basis: 56px; } .dialog-head { align-items: flex-start; gap: 10px; } .reader-controls { align-items: flex-start; flex-direction: column; } .stepper { width: 150px; } }
   </style>
 </head>
 <body>
   <main id="app"></main>
   <dialog id="historyDialog">
     <div class="dialog-inner">
-      <div class="dialog-head"><h2>文本历史</h2><button class="close" id="closeDialog" aria-label="关闭">×</button></div>
+      <div class="dialog-head"><div class="dialog-title-and-controls"><h2>文本历史</h2><div class="reader-controls" aria-label="阅读排版设置">
+        <div class="reader-control"><span>字号</span><div class="stepper"><button type="button" data-adjust="fontSize" data-delta="-1" aria-label="减小字号">−</button><output id="fontSizeValue"></output><button type="button" data-adjust="fontSize" data-delta="1" aria-label="增大字号">+</button></div></div>
+        <div class="reader-control"><span>字距</span><div class="stepper"><button type="button" data-adjust="letterSpacing" data-delta="-0.5" aria-label="减小字距">−</button><output id="letterSpacingValue"></output><button type="button" data-adjust="letterSpacing" data-delta="0.5" aria-label="增大字距">+</button></div></div>
+        <div class="reader-control"><span>行距</span><div class="stepper"><button type="button" data-adjust="lineHeight" data-delta="-0.1" aria-label="减小行距">−</button><output id="lineHeightValue"></output><button type="button" data-adjust="lineHeight" data-delta="0.1" aria-label="增大行距">+</button></div></div>
+      </div></div><button class="close" id="closeDialog" aria-label="关闭">×</button></div>
       <form id="newTextForm" class="new-entry">
         <div class="text-area-wrap"><textarea id="newText" placeholder="粘贴或输入一段中文文字……" required></textarea><button class="annotate-button" type="submit">注音</button></div>
         <div class="status" id="modalStatus"></div>
@@ -148,17 +164,57 @@
       const historyList = document.querySelector('#historyList');
       const modalStatus = document.querySelector('#modalStatus');
       const newText = document.querySelector('#newText');
+      const fontSizeValue = document.querySelector('#fontSizeValue');
+      const letterSpacingValue = document.querySelector('#letterSpacingValue');
+      const lineHeightValue = document.querySelector('#lineHeightValue');
+      const SETTINGS_VERSION = 2;
+      const DEFAULT_READER_SETTINGS = { version: SETTINGS_VERSION, fontSize: 33, letterSpacing: 0, lineHeight: 2 };
+      const SETTING_LIMITS = {
+        fontSize: { min: 18, max: 56, step: 1 },
+        letterSpacing: { min: -2, max: 12, step: .5 },
+        lineHeight: { min: 1.5, max: 4, step: .1 }
+      };
       let state = loadState();
 
       function loadState() {
-        try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { items: [], currentId: null }; }
-        catch (_) { return { items: [], currentId: null }; }
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+          // Reset the previous version's font selection and slider values to this version's defaults.
+          const settings = saved?.settings?.version === SETTINGS_VERSION
+            ? { ...DEFAULT_READER_SETTINGS, ...saved.settings }
+            : { ...DEFAULT_READER_SETTINGS };
+          for (const [key, limits] of Object.entries(SETTING_LIMITS)) {
+            const value = Number(settings[key]);
+            settings[key] = Math.min(limits.max, Math.max(limits.min, Number.isFinite(value) ? value : DEFAULT_READER_SETTINGS[key]));
+          }
+          return { items: Array.isArray(saved?.items) ? saved.items : [], currentId: saved?.currentId || null, settings };
+        } catch (_) { return { items: [], currentId: null, settings: { ...DEFAULT_READER_SETTINGS } }; }
       }
       function saveState() {
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); return true; }
         catch (_) { return false; }
       }
       function escapeHTML(value) { return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]); }
+      function applyReaderSettings() {
+        const settings = state.settings;
+        document.documentElement.style.setProperty('--reader-font-size', `${settings.fontSize}px`);
+        document.documentElement.style.setProperty('--reader-letter-spacing', `${settings.letterSpacing}px`);
+        document.documentElement.style.setProperty('--reader-line-height', settings.lineHeight);
+        fontSizeValue.value = `${settings.fontSize}px`;
+        letterSpacingValue.value = `${settings.letterSpacing}px`;
+        lineHeightValue.value = settings.lineHeight.toFixed(1);
+      }
+      function updateReaderSetting(key, value) {
+        state.settings[key] = value;
+        applyReaderSettings();
+        saveState();
+      }
+      function adjustReaderSetting(key, delta) {
+        const limits = SETTING_LIMITS[key];
+        const next = state.settings[key] + delta;
+        const rounded = Math.round(next / limits.step) * limits.step;
+        updateReaderSetting(key, Math.min(limits.max, Math.max(limits.min, Number(rounded.toFixed(2)))));
+      }
       function isHanzi(char) { return /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/.test(char); }
       function titleFor(text) {
         const cleaned = text.trim().replace(/^[\s\p{P}\p{S}]+/u, '');
@@ -220,7 +276,7 @@
         const existing = state.items.find(item => item.text === cleaned);
         const item = existing || { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, text: cleaned, createdAt: Date.now() };
         const previousState = state;
-        state = { items: existing ? state.items : [item, ...state.items], currentId: item.id };
+        state = { ...state, items: existing ? state.items : [item, ...state.items], currentId: item.id };
         if (!saveState()) { state = previousState; statusNode.textContent = '本地存储空间不足，请删除不需要的历史文本后重试。'; return; }
         dialog.close(); newText.value = ''; modalStatus.textContent = '';
         render(); renderHistory(); window.scrollTo({ top: 0, behavior: 'auto' });
@@ -231,12 +287,18 @@
         historyList.querySelectorAll('[data-delete-id]').forEach(button => button.addEventListener('click', () => {
           const id = button.dataset.deleteId;
           const remaining = state.items.filter(item => item.id !== id);
-          state = { items: remaining, currentId: state.currentId === id ? (remaining[0]?.id || null) : state.currentId };
+          state = { ...state, items: remaining, currentId: state.currentId === id ? (remaining[0]?.id || null) : state.currentId };
           saveState(); render(); renderHistory();
         }));
       }
       document.querySelector('#newTextForm').addEventListener('submit', e => { e.preventDefault(); createItem(newText.value, modalStatus); });
       document.querySelector('#closeDialog').addEventListener('click', () => dialog.close());
+      document.querySelectorAll('[data-adjust]').forEach(button => button.addEventListener('click', () => adjustReaderSetting(button.dataset.adjust, Number(button.dataset.delta))));
+      dialog.addEventListener('click', event => {
+        const rect = dialog.getBoundingClientRect();
+        if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();
+      });
+      applyReaderSettings();
       render(); renderHistory();
       pinyinReady.then(() => render()).catch(() => {});
     })();
